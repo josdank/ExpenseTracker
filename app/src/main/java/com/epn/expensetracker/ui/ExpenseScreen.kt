@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -65,6 +66,10 @@ fun ExpenseScreen(
     val gastos by viewModel.gastos.collectAsState(initial = emptyList())
     val total by viewModel.total.collectAsState(initial = 0.0)
 
+    // Estado edición
+    val gastoEditando by viewModel.gastoEditando.collectAsState()
+    val modoEdicion = gastoEditando != null
+
     // Estados del recordatorio
     val recordatorioActivo by viewModel.recordatorioActivo.collectAsState()
     val horaRecordatorio by viewModel.horaRecordatorio.collectAsState()
@@ -88,12 +93,14 @@ fun ExpenseScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Formulario para agregar gasto
+            // Formulario para agregar / actualizar gasto
             FormularioGasto(
                 monto = monto,
                 descripcion = descripcion,
                 categoriaSeleccionada = categoriaSeleccionada,
                 categorias = viewModel.categorias,
+                modoEdicion = modoEdicion,
+                onCancelarEdicion = { viewModel.cancelarEdicion() },
                 onMontoChange = { viewModel.actualizarMonto(it) },
                 onDescripcionChange = { viewModel.actualizarDescripcion(it) },
                 onCategoriaChange = { viewModel.seleccionarCategoria(it) },
@@ -155,6 +162,7 @@ fun ExpenseScreen(
                 gastos.forEach { gasto ->
                     GastoItem(
                         gasto = gasto,
+                        onEditar = { viewModel.iniciarEdicion(gasto) },
                         onEliminar = { viewModel.eliminarGasto(gasto) }
                     )
                 }
@@ -286,7 +294,7 @@ fun TimePickerDialog(
 }
 
 /**
- * Formulario para ingresar un nuevo gasto.
+ * Formulario para ingresar / actualizar un gasto.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -295,6 +303,8 @@ fun FormularioGasto(
     descripcion: String,
     categoriaSeleccionada: String,
     categorias: List<String>,
+    modoEdicion: Boolean,
+    onCancelarEdicion: () -> Unit,
     onMontoChange: (String) -> Unit,
     onDescripcionChange: (String) -> Unit,
     onCategoriaChange: (String) -> Unit,
@@ -311,7 +321,7 @@ fun FormularioGasto(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Nuevo Gasto",
+                text = if (modoEdicion) "Editar Gasto" else "Nuevo Gasto",
                 style = MaterialTheme.typography.titleMedium
             )
 
@@ -369,12 +379,21 @@ fun FormularioGasto(
                 }
             }
 
-            // Botón guardar
+            // Botones (Guardar/Actualizar + Cancelar si edita)
             Button(
                 onClick = onGuardar,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Guardar")
+                Text(if (modoEdicion) "Actualizar" else "Guardar")
+            }
+
+            if (modoEdicion) {
+                TextButton(
+                    onClick = onCancelarEdicion,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancelar edición")
+                }
             }
         }
     }
@@ -386,6 +405,7 @@ fun FormularioGasto(
 @Composable
 fun GastoItem(
     gasto: ExpenseEntity,
+    onEditar: () -> Unit,
     onEliminar: () -> Unit
 ) {
     val fechaFormateada = remember(gasto.fecha) {
@@ -422,6 +442,13 @@ fun GastoItem(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
+
+            IconButton(onClick = onEditar) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Editar"
+                )
+            }
 
             IconButton(onClick = onEliminar) {
                 Icon(

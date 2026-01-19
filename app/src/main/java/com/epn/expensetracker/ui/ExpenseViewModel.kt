@@ -22,7 +22,7 @@ class ExpenseViewModel(
     minutoRecordatorioInicial: Int = 0
 ) : ViewModel() {
 
-    // Estado del formulario de nuevo gasto
+    // Estado del formulario
     private val _monto = MutableStateFlow("")
     val monto: StateFlow<String> = _monto.asStateFlow()
 
@@ -31,6 +31,10 @@ class ExpenseViewModel(
 
     private val _categoriaSeleccionada = MutableStateFlow("Comida")
     val categoriaSeleccionada: StateFlow<String> = _categoriaSeleccionada.asStateFlow()
+
+    // Estado de edición (si es null, estás creando; si no, estás editando)
+    private val _gastoEditando = MutableStateFlow<ExpenseEntity?>(null)
+    val gastoEditando: StateFlow<ExpenseEntity?> = _gastoEditando.asStateFlow()
 
     // Estado del recordatorio (cargado desde preferencias)
     private val _recordatorioActivo = MutableStateFlow(recordatorioActivoInicial)
@@ -69,6 +73,26 @@ class ExpenseViewModel(
     }
 
     /**
+     * Entrar en modo edición: carga los datos del gasto en el formulario.
+     */
+    fun iniciarEdicion(gasto: ExpenseEntity) {
+        _gastoEditando.value = gasto
+        _monto.value = gasto.monto.toString()
+        _descripcion.value = gasto.descripcion
+        _categoriaSeleccionada.value = gasto.categoria
+    }
+
+    /**
+     * Salir de modo edición y limpiar formulario.
+     */
+    fun cancelarEdicion() {
+        _gastoEditando.value = null
+        _monto.value = ""
+        _descripcion.value = ""
+        _categoriaSeleccionada.value = "Comida"
+    }
+
+    /**
      * Activa o desactiva el recordatorio.
      */
     fun cambiarEstadoRecordatorio(activo: Boolean) {
@@ -84,7 +108,9 @@ class ExpenseViewModel(
     }
 
     /**
-     * Guarda un nuevo gasto y limpia el formulario.
+     * Guarda:
+     * - Si NO estás editando => INSERT
+     * - Si estás editando => UPDATE
      */
     fun guardarGasto() {
         val montoDouble = _monto.value.toDoubleOrNull()
@@ -93,18 +119,32 @@ class ExpenseViewModel(
         if (montoDouble == null || montoDouble <= 0) return
         if (_descripcion.value.isBlank()) return
 
-        // viewModelScope cancela automáticamente si el ViewModel se destruye
         viewModelScope.launch {
-            val nuevoGasto = ExpenseEntity(
-                monto = montoDouble,
-                descripcion = _descripcion.value.trim(),
-                categoria = _categoriaSeleccionada.value
-            )
-            repository.agregar(nuevoGasto)
+            val editando = _gastoEditando.value
 
-            // Limpiar formulario después de guardar
+            if (editando == null) {
+                // INSERT
+                val nuevoGasto = ExpenseEntity(
+                    monto = montoDouble,
+                    descripcion = _descripcion.value.trim(),
+                    categoria = _categoriaSeleccionada.value
+                )
+                repository.agregar(nuevoGasto)
+            } else {
+                // UPDATE (mantiene id y fecha)
+                val actualizado = editando.copy(
+                    monto = montoDouble,
+                    descripcion = _descripcion.value.trim(),
+                    categoria = _categoriaSeleccionada.value
+                )
+                repository.actualizar(actualizado)
+            }
+
+            // Limpiar y salir de edición si aplica
+            _gastoEditando.value = null
             _monto.value = ""
             _descripcion.value = ""
+            _categoriaSeleccionada.value = "Comida"
         }
     }
 
@@ -120,9 +160,6 @@ class ExpenseViewModel(
 
 /**
  * Factory para crear el ViewModel con sus dependencias.
- *
- * Esto es necesario porque ViewModel no puede recibir parámetros
- * en su constructor directamente.
  */
 class ExpenseViewModelFactory(
     private val repository: ExpenseRepository,
