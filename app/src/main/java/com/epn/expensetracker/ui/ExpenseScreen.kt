@@ -88,7 +88,6 @@ fun ExpenseScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Formulario para agregar gasto
             FormularioGasto(
                 monto = monto,
                 descripcion = descripcion,
@@ -286,7 +285,6 @@ fun TimePickerDialog(
 }
 
 /**
- * Formulario para ingresar un nuevo gasto.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -311,9 +309,8 @@ fun FormularioGasto(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Nuevo Gasto",
                 style = MaterialTheme.typography.titleMedium
-            )
+            ),
 
             // Campo de monto
             OutlinedTextField(
@@ -369,12 +366,10 @@ fun FormularioGasto(
                 }
             }
 
-            // Botón guardar
             Button(
                 onClick = onGuardar,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Guardar")
             }
         }
     }
