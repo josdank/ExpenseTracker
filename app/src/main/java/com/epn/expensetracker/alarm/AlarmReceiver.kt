@@ -15,7 +15,7 @@ import com.epn.expensetracker.R
 
 /**
  * BroadcastReceiver que se ejecuta cuando la alarma se dispara.
- * Funciona incluso con la app completamente cerrada.
+ * Funciona con la app completamente cerrada.
  */
 class AlarmReceiver : BroadcastReceiver() {
 
