@@ -14,7 +14,7 @@ import java.util.Calendar
  */
 object ReminderScheduler {
 
-    private const val ALARM_REQUEST_CODE = 1001
+    private const val ALARM_REQUEST_CODE = 2001
 
     /**
      * Programa un recordatorio diario a la hora indicada.

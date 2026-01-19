@@ -13,48 +13,33 @@ import androidx.core.app.NotificationCompat
 import com.epn.expensetracker.MainActivity
 import com.epn.expensetracker.R
 
-/**
- * BroadcastReceiver que se ejecuta cuando la alarma se dispara.
- * Funciona incluso con la app completamente cerrada.
- */
 class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         mostrarNotificacion(context)
 
-        // Reprogramar para el día siguiente
+        // Opcional: Reprogramar para el día siguiente automáticamente
         val hora = ReminderPreferences.obtenerHora(context)
         val minuto = ReminderPreferences.obtenerMinuto(context)
-        ReminderScheduler.programarRecordatorio(context, hora, minuto)
+        if (ReminderPreferences.estaActivo(context)) {
+            ReminderScheduler.programarRecordatorio(context, hora, minuto)
+        }
     }
 
     private fun mostrarNotificacion(context: Context) {
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "expense_reminder_channel"
 
-        // Crear el canal (obligatorio desde Android 8.0)
+        // Crear canal de notificación (Obligatorio en Android 8+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val soundUri = Settings.System.DEFAULT_NOTIFICATION_URI
-            val audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-
             val canal = NotificationChannel(
-                CHANNEL_ID,
-                "Recordatorios",
+                channelId,
+                "Recordatorios de Gastos",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Recordatorios diarios de gastos"
-
-                // Vibración
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 250, 250, 250)
-
-                // Sonido
-                setSound(soundUri, audioAttributes)
+                description = "Recordatorio diario para registrar gastos"
+                enableVibration(true) // Reto 1: Vibración
             }
-
             notificationManager.createNotificationChannel(canal)
         }
 
@@ -70,22 +55,16 @@ class AlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notificacion = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("¿Registraste tus gastos?")
-            .setContentText("No olvides anotar lo que gastaste hoy")
+        val notificacion = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(R.mipmap.ic_launcher_round) // Icono de la app
+            .setContentTitle("¡Hora de registrar gastos!")
+            .setContentText("No olvides anotar lo que gastaste hoy.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            // En pre-O ayuda; en O+ manda el canal
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setDefaults(NotificationCompat.DEFAULT_ALL) // Sonido y vibración por defecto
             .build()
 
-        notificationManager.notify(NOTIFICATION_ID, notificacion)
-    }
-
-    companion object {
-        const val CHANNEL_ID = "expense_reminder_channel"
-        const val NOTIFICATION_ID = 1001
+        notificationManager.notify(1001, notificacion)
     }
 }

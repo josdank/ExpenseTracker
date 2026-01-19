@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -22,11 +24,13 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,23 +53,21 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * Pantalla principal de la aplicación.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseScreen(
     viewModel: ExpenseViewModel,
     onRecordatorioChange: (Boolean, Int, Int) -> Unit
 ) {
-    // Estados del formulario
     val monto by viewModel.monto.collectAsState()
     val descripcion by viewModel.descripcion.collectAsState()
     val categoriaSeleccionada by viewModel.categoriaSeleccionada.collectAsState()
     val gastos by viewModel.gastos.collectAsState(initial = emptyList())
     val total by viewModel.total.collectAsState(initial = 0.0)
 
-    // Estados del recordatorio
+    val gastoEditando by viewModel.gastoEditando.collectAsState()
+    val modoEdicion = gastoEditando != null
+
     val recordatorioActivo by viewModel.recordatorioActivo.collectAsState()
     val horaRecordatorio by viewModel.horaRecordatorio.collectAsState()
     val minutoRecordatorio by viewModel.minutoRecordatorio.collectAsState()
@@ -73,98 +75,133 @@ fun ExpenseScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mis Gastos") },
+                title = { Text("ExpenseTracker") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         }
     ) { paddingValues ->
-
-        Column(
+        Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .padding(paddingValues),
+            color = MaterialTheme.colorScheme.background
         ) {
-            FormularioGasto(
-                monto = monto,
-                descripcion = descripcion,
-                categoriaSeleccionada = categoriaSeleccionada,
-                categorias = viewModel.categorias,
-                onMontoChange = { viewModel.actualizarMonto(it) },
-                onDescripcionChange = { viewModel.actualizarDescripcion(it) },
-                onCategoriaChange = { viewModel.seleccionarCategoria(it) },
-                onGuardar = { viewModel.guardarGasto() }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Configuración del recordatorio
-            ConfiguracionRecordatorio(
-                activo = recordatorioActivo,
-                hora = horaRecordatorio,
-                minuto = minutoRecordatorio,
-                onActivoChange = { nuevoEstado ->
-                    viewModel.cambiarEstadoRecordatorio(nuevoEstado)
-                    onRecordatorioChange(nuevoEstado, horaRecordatorio, minutoRecordatorio)
-                },
-                onHoraChange = { nuevaHora, nuevoMinuto ->
-                    viewModel.actualizarHoraRecordatorio(nuevaHora, nuevoMinuto)
-                    if (recordatorioActivo) {
-                        onRecordatorioChange(true, nuevaHora, nuevoMinuto)
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Total gastado
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Total: $${String.format("%.2f", total ?: 0.0)}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Lista de gastos
-            Text(
-                text = "Historial",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (gastos.isEmpty()) {
-                Text(
-                    text = "No hay gastos registrados",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                gastos.forEach { gasto ->
-                    GastoItem(
-                        gasto = gasto,
-                        onEliminar = { viewModel.eliminarGasto(gasto) }
+                // FORM
+                item {
+                    FormularioGasto(
+                        monto = monto,
+                        descripcion = descripcion,
+                        categoriaSeleccionada = categoriaSeleccionada,
+                        categorias = viewModel.categorias,
+                        modoEdicion = modoEdicion,
+                        onCancelarEdicion = { viewModel.cancelarEdicion() },
+                        onMontoChange = { viewModel.actualizarMonto(it) },
+                        onDescripcionChange = { viewModel.actualizarDescripcion(it) },
+                        onCategoriaChange = { viewModel.seleccionarCategoria(it) },
+                        onGuardar = { viewModel.guardarGasto() }
                     )
                 }
+
+                // RECORDATORIO
+                item {
+                    ConfiguracionRecordatorio(
+                        activo = recordatorioActivo,
+                        hora = horaRecordatorio,
+                        minuto = minutoRecordatorio,
+                        onActivoChange = { nuevoEstado ->
+                            viewModel.cambiarEstadoRecordatorio(nuevoEstado)
+                            onRecordatorioChange(nuevoEstado, horaRecordatorio, minutoRecordatorio)
+                        },
+                        onHoraChange = { nuevaHora, nuevoMinuto ->
+                            viewModel.actualizarHoraRecordatorio(nuevaHora, nuevoMinuto)
+                            if (recordatorioActivo) onRecordatorioChange(true, nuevaHora, nuevoMinuto)
+                        }
+                    )
+                }
+
+                // TOTAL
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Total gastado",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "$${String.format("%.2f", total ?: 0.0)}",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                        }
+                    }
+                }
+
+                // HEADER HISTORIAL
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = "Historial",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "${gastos.size} ítem(s)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+                }
+
+                // LISTA
+                if (gastos.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No hay gastos registrados",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    }
+                } else {
+                    items(
+                        items = gastos,
+                        key = { it.id } // si tu entidad se llama distinto, cambia aquí
+                    ) { gasto ->
+                        GastoItem(
+                            gasto = gasto,
+                            onEditar = { viewModel.iniciarEdicion(gasto) },
+                            onEliminar = { viewModel.eliminarGasto(gasto) }
+                        )
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
     }
 }
 
-/**
- * Tarjeta de configuración del recordatorio.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfiguracionRecordatorio(
@@ -180,14 +217,11 @@ fun ConfiguracionRecordatorio(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Recordatorio diario",
-                style = MaterialTheme.typography.titleMedium
-            )
-
+            Text(text = "Recordatorio diario", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
@@ -195,20 +229,12 @@ fun ConfiguracionRecordatorio(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Activar notificación",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Switch(
-                    checked = activo,
-                    onCheckedChange = onActivoChange
-                )
+                Text(text = "Activar notificación", style = MaterialTheme.typography.bodyMedium)
+                Switch(checked = activo, onCheckedChange = onActivoChange)
             }
 
-            // Selector de hora (solo visible si está activo)
             if (activo) {
-                Spacer(modifier = Modifier.height(8.dp))
-
+                Spacer(modifier = Modifier.height(10.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -216,14 +242,9 @@ fun ConfiguracionRecordatorio(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(text = "Hora del recordatorio", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        text = "Hora del recordatorio",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    val horaFormateada = String.format("%02d:%02d", hora, minuto)
-                    Text(
-                        text = horaFormateada,
+                        text = String.format("%02d:%02d", hora, minuto),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -232,7 +253,6 @@ fun ConfiguracionRecordatorio(
         }
     }
 
-    // Diálogo con el TimePicker
     if (mostrarTimePicker) {
         TimePickerDialog(
             horaInicial = hora,
@@ -246,9 +266,6 @@ fun ConfiguracionRecordatorio(
     }
 }
 
-/**
- * Diálogo con el TimePicker de Material 3.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimePickerDialog(
@@ -266,26 +283,18 @@ fun TimePickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Seleccionar hora") },
-        text = {
-            TimePicker(state = timePickerState)
-        },
+        text = { TimePicker(state = timePickerState) },
         confirmButton = {
-            TextButton(
-                onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }
-            ) {
+            TextButton(onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }) {
                 Text("Aceptar")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
     )
 }
 
-/**
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormularioGasto(
@@ -293,6 +302,8 @@ fun FormularioGasto(
     descripcion: String,
     categoriaSeleccionada: String,
     categorias: List<String>,
+    modoEdicion: Boolean,
+    onCancelarEdicion: () -> Unit,
     onMontoChange: (String) -> Unit,
     onDescripcionChange: (String) -> Unit,
     onCategoriaChange: (String) -> Unit,
@@ -302,17 +313,17 @@ fun FormularioGasto(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
+                text = if (modoEdicion) "Editar gasto" else "Nuevo gasto",
                 style = MaterialTheme.typography.titleMedium
-            ),
+            )
 
-            // Campo de monto
             OutlinedTextField(
                 value = monto,
                 onValueChange = onMontoChange,
@@ -323,7 +334,6 @@ fun FormularioGasto(
                 singleLine = true
             )
 
-            // Campo de descripción
             OutlinedTextField(
                 value = descripcion,
                 onValueChange = onDescripcionChange,
@@ -332,7 +342,6 @@ fun FormularioGasto(
                 singleLine = true
             )
 
-            // Selector de categoría (Dropdown)
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = it }
@@ -342,9 +351,7 @@ fun FormularioGasto(
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Categoría") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                    },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor()
@@ -370,17 +377,25 @@ fun FormularioGasto(
                 onClick = onGuardar,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                Text(if (modoEdicion) "Actualizar" else "Guardar")
+            }
+
+            if (modoEdicion) {
+                TextButton(
+                    onClick = onCancelarEdicion,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancelar edición")
+                }
             }
         }
     }
 }
 
-/**
- * Muestra un gasto individual en la lista.
- */
 @Composable
 fun GastoItem(
     gasto: ExpenseEntity,
+    onEditar: () -> Unit,
     onEliminar: () -> Unit
 ) {
     val fechaFormateada = remember(gasto.fecha) {
@@ -389,22 +404,18 @@ fun GastoItem(
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = gasto.descripcion,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                Text(text = gasto.descripcion, style = MaterialTheme.typography.bodyLarge)
                 Text(
                     text = "${gasto.categoria} • $fechaFormateada",
                     style = MaterialTheme.typography.bodySmall,
@@ -418,7 +429,11 @@ fun GastoItem(
                 color = MaterialTheme.colorScheme.primary
             )
 
-            IconButton(onClick = onEliminar) {
+            IconButton(onClick = onEditar, modifier = Modifier.size(40.dp)) {
+                Icon(imageVector = Icons.Default.Edit, contentDescription = "Editar")
+            }
+
+            IconButton(onClick = onEliminar, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Eliminar",
