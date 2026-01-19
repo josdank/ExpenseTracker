@@ -27,8 +27,6 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     private fun mostrarNotificacion(context: Context) {
-        val notificationManager = context
-            .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Crear el canal (obligatorio desde Android 8.0)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
